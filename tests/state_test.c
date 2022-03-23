@@ -16,10 +16,9 @@ void test_state_create() {
 	StateInfo info = state_info(state);
 	TEST_ASSERT(info != NULL);
 
-	TEST_ASSERT(info->current_portal == 0);
-	TEST_ASSERT(info->wins == 0);
 	TEST_ASSERT(info->playing);
 	TEST_ASSERT(!info->paused);
+	TEST_ASSERT(info->score == 0);
 
 	// Προσθέστε επιπλέον ελέγχους
 }
@@ -29,22 +28,22 @@ void test_state_update() {
 	TEST_ASSERT(state != NULL && state_info(state) != NULL);
 
 	// Πληροφορίες για τα πλήκτρα (αρχικά κανένα δεν είναι πατημένο)
-	struct key_state keys = { false, false, false, false, false, false };
+	struct key_state keys = { false, false, false, false, false, false, false, false };
 	
-	// Χωρίς κανένα πλήκτρο, ο χαρακτήρας μετακινείται 7 pixels μπροστά
-	Rectangle old_rect = state_info(state)->character->rect;
+	// Χωρίς κανένα πλήκτρο, το αεροσκάφος μετακινείται 3 pixels πάνω
+	Rectangle old_rect = state_info(state)->jet->rect;
 	state_update(state, &keys);
-	Rectangle new_rect = state_info(state)->character->rect;
+	Rectangle new_rect = state_info(state)->jet->rect;
 
-	TEST_ASSERT( new_rect.x == old_rect.x + 7 && new_rect.y == old_rect.y );
+	TEST_ASSERT( new_rect.x == old_rect.x && new_rect.y == old_rect.y - 3 );
 
-	// Με πατημένο το δεξί βέλος, ο χαρακτήρας μετακινείται 12 pixes μπροστά
-	keys.right = true;
-	old_rect = state_info(state)->character->rect;
+	// Με πατημένο το δεξί βέλος, το αεροσκάφος μετακινείται 6 pixels μπροστά
+	keys.up = true;
+	old_rect = state_info(state)->jet->rect;
 	state_update(state, &keys);
-	new_rect = state_info(state)->character->rect;
+	new_rect = state_info(state)->jet->rect;
 
-	TEST_ASSERT( new_rect.x == old_rect.x + 12 && new_rect.y == old_rect.y );
+	TEST_CHECK( new_rect.x == old_rect.x && new_rect.y == old_rect.y - 6 );
 
 	// Προσθέστε επιπλέον ελέγχους
 }

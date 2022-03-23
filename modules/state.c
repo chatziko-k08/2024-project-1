@@ -1,7 +1,6 @@
 
 #include <stdlib.h>
 
-#include "ADTVector.h"
 #include "ADTList.h"
 #include "state.h"
 
@@ -11,20 +10,94 @@
 // δεν είναι ορατό στον χρήστη.
 
 struct state {
-	Vector objects;			// περιέχει στοιχεία Object (Εμπόδια / Εχθροί / Πύλες)
-	List portal_pairs;		// περιέχει PortaPair (ζευγάρια πυλών, είσοδος/έξοδος)
-
-	struct state_info info;
+	List objects;			// περιέχει στοιχεία Object (Εδαφος / Ελικόπτερα / Πλοία/ Γέφυρες)
+	struct state_info info;	// Γενικές πληροφορίες για την κατάσταση του παιχνιδιού
+	float speed_factor;		// Πολλαπλασιαστής ταχύτητς (1 = κανονική ταχύτητα, 2 = διπλάσια, κλπ)
 };
 
-// Ζευγάρια πυλών
 
-typedef struct portal_pair {
-	Object entrance;		// η πύλη entrance
-	Object exit;			// οδηγεί στην exit
-}* PortalPair;
+// Δημιουργεί και επιστρέφει ένα αντικείμενο
 
+static Object create_object(ObjectType type, float x, float y, float width, float height) {
+	Object obj = malloc(sizeof(*obj));
+	obj->type = type;
+	obj->rect.x = x;
+	obj->rect.y = y;
+	obj->rect.width = width;
+	obj->rect.height = height;
+	return obj;
+}
 
+// Προσθέτει αντικείμενα στην πίστα (η οποία μπορεί να περιέχει ήδη αντικείμενα).
+// Τα αντικείμενα ξεκινάνε από y = start_y, και επεκτείνονται προς τα πάνω.
+//
+// ΠΡΟΣΟΧΗ: όλα τα αντικείμενα έχουν συντεταγμένες x,y σε ένα
+// καρτεσιανό επίπεδο.
+// - Στο άξονα x το 0 είναι το αριστερό μέρος της πίστας και οι συντεταγμένες
+//   μεγαλώνουν προς τα δεξιά. Η πίστα έχει σταθερό πλάτος, οπότε όλες οι
+//   συντεταγμένες x είναι ανάμεσα στο 0 και το SCREEN_WIDTH.
+//
+// - Στον άξονα y το 0 είναι η αρχή της πίστας, και οι συντεταγμένες μεγαλώνουν
+//   προς τα _κάτω_. Η πίστα αντιθέτως επεκτείνεται προς τα πάνω, οπότε όλες οι
+//   συντεταγμένες των αντικειμένων είναι _αρνητικές_.
+//
+// Πέρα από τις συντεταγμένες, αποθηκεύουμε και τις διαστάσεις width,height
+// κάθε αντικειμένου. Τα x,y,width,height ορίζουν ένα παραλληλόγραμμο, οπότε
+// μπορούν να αποθηκευτούν όλα μαζί στο obj->rect τύπου Rectangle (ορίζεται
+// στο include/raylib.h). Τα x,y αναφέρονται στην πάνω-αριστερά γωνία του Rectangle.
+
+static void add_objects(State state, float start_y) {
+	// Προσθέτουμε BRIDGE_NUM γέφυρες.
+	// Στο διάστημα ανάμεσα σε δύο διαδοχικές γέφυρες προσθέτουμε:
+	// - Εδαφος, αριστερά και δεξιά της οθόνης (με μεταβαλλόμενο πλάτος).
+	// - 3 εχθρούς (ελικόπτερα και πλοία)
+	// Τα αντικείμενα έχουν SPACING pixels απόσταση μεταξύ τους.
+
+	for (int i = 0; i < BRIDGE_NUM; i++) {
+		// Δημιουργία γέφυρας
+		Object bridge = create_object(
+			BRIDGE,
+			0,								// x στο αριστερό άκρο της οθόνης
+			start_y - 4 * (i+1) * SPACING,	// Η γέφυρα i έχει y = 4 * (i+1) * SPACING
+			SCREEN_WIDTH,					// Πλάτος ολόκληρη η οθόνη
+			20								// Υψος
+		);
+
+		// Δημιουργία εδάφους
+		Object terain_left = create_object(
+			TERAIN,
+			0,								// Αριστερό έδαφος, x = 0
+			bridge->rect.y,					// y ίδιο με την γέφυρα
+			rand() % (SCREEN_WIDTH/3),		// Πλάτος επιλεγμένο τυχαία
+			4*SPACING						// Υψος καλύπτει το χώρο ανάμεσα σε 2 γέφυρες
+		);
+		int width = rand() % (SCREEN_WIDTH/2);
+		Object terain_right = create_object(
+			TERAIN,
+			SCREEN_WIDTH - width,			// Δεξί έδαφος, x = <οθόνη> - <πλάτος εδάφους>
+			bridge->rect.y,					// y ίδιο με τη γέφυρα
+			width,							// Πλάτος, επιλεγμένο τυχαία
+			4*SPACING						// Υψος καλύπτει το χώρο ανάμεσα σε 2 γέφυρες
+		);
+
+		list_insert_next(state->objects, list_last(state->objects), terain_left);
+		list_insert_next(state->objects, list_last(state->objects), terain_right);
+		list_insert_next(state->objects, list_last(state->objects), bridge);
+
+		// Προσθήκη 3 εχθρών πριν από τη γέφυρα.
+		for (int j = 0; j < 3; j++) {
+			// Ο πρώτος εχθρός βρίσκεται SPACING pixels κάτω από τη γέφυρα, ο δεύτερος 2*SPACING pixels κάτω από τη γέφυρα, κλπ.
+			float y = bridge->rect.y + (j+1)*SPACING;
+
+			Object enemy = rand() % 2 == 0		// Τυχαία επιλογή ανάμεσα σε πλοίο και ελικόπτερο
+				? create_object(WARSHIP,    (SCREEN_WIDTH - 83)/2, y, 83, 30)		// οριζόντιο κεντράρισμα
+				: create_object(HELICOPTER, (SCREEN_WIDTH - 66)/2, y, 66, 25);
+			enemy->forward = rand() % 2 == 0;	// Τυχαία αρχική κατεύθυνση
+
+			list_insert_next(state->objects, list_last(state->objects), enemy);
+		}
+	}
+}
 
 // Δημιουργεί και επιστρέφει την αρχική κατάσταση του παιχνιδιού
 
@@ -33,76 +106,19 @@ State state_create() {
 	State state = malloc(sizeof(*state));
 
 	// Γενικές πληροφορίες
-	state->info.current_portal = 0;			// Δεν έχουμε περάσει καμία πύλη
-	state->info.wins = 0;					// Δεν έχουμε νίκες ακόμα
 	state->info.playing = true;				// Το παιχνίδι ξεκινάει αμέσως
 	state->info.paused = false;				// Χωρίς να είναι paused.
+	state->info.score = 0;					// Αρχικό σκορ 0
+	state->info.missile = NULL;				// Αρχικά δεν υπάρχει πύραυλος
+	state->speed_factor = 1;				// Κανονική ταχύτητα
 
-	// Πληροφορίες για το χαρακτήρα.
-	Object character = state->info.character = malloc(sizeof(*character));
-	character->type = CHARACTER;
-	character->forward = true;
-	character->jumping = false;
+	// Δημιουργία του αεροσκάφους, κεντραρισμένο οριζόντια και με y = 0
+	state->info.jet = create_object(JET, (SCREEN_WIDTH - 35)/2,  0, 35, 40);
 
-    // Ο χαρακτήρας (όπως και όλα τα αντικείμενα) έχουν συντεταγμένες x,y σε ένα
-    // καρτεσιανό επίπεδο.
-	// - Στο άξονα x το 0 είναι η αρχή στης πίστας και οι συντεταγμένες
-	//   μεγαλώνουν προς τα δεξιά.
-	// - Στον άξονα y το 0 είναι το "δάπεδο" της πίστας, και οι
-	//   συντεταγμένες μεγαλώνουν προς τα _κάτω_.
-	// Πέρα από τις συντεταγμένες, αποθηκεύουμε και τις διαστάσεις width,height
-	// κάθε αντικειμένου. Τα x,y,width,height ορίζουν ένα παραλληλόγραμμο, οπότε
-	// μπορούν να αποθηκευτούν όλα μαζί στο obj->rect τύπου Rectangle (ορίζεται
-	// στο include/raylib.h).
-	// 
-	// Προσοχή: τα x,y αναφέρονται στην πάνω-αριστερά γωνία του Rectangle, και
-	// τα y μεγαλώνουν προς τα κάτω, οπότε πχ ο χαρακτήρας που έχει height=38,
-	// αν θέλουμε να "κάθεται" πάνω στο δάπεδο, θα πρέπει να έχει y=-38.
-
-	character->rect.width = 70;
-	character->rect.height = 38;
-	character->rect.x = 0;
-	character->rect.y = - character->rect.height;
-
-	// Δημιουργία των objects (πύλες / εμπόδια / εχθροί) και προσθήκη στο vector
-	// state->objects. Η πίστα περιέχει συνολικά 4*PORTAL_NUM αντικείμενα, από
-	// τα οποία τα PORTAL_NUM είναι πύλες, και τα υπόλοια εμπόδια και εχθροί.
-
-	state->objects = vector_create(0, free);		// Δημιουργία του vector
-
-	for (int i = 0; i < 4*PORTAL_NUM; i++) {
-		// Δημιουργία του Object και προσθήκη στο vector
-		Object obj = malloc(sizeof(*obj));
-		vector_insert_last(state->objects, obj);
-
-		// Κάθε 4 αντικείμενα υπάρχει μια πύλη. Τα υπόλοιπα αντικείμενα
-		// επιλέγονται τυχαία.
-
-		if(i % 4 == 3) {							// Το 4ο, 8ο, 12ο κλπ αντικείμενο
-			obj->type = PORTAL;						// είναι πύλη.
-			obj->rect.width = 100;
-			obj->rect.height = 5;
-
-		} else if(rand() % 2 == 0) {				// Για τα υπόλοιπα, με πιθανότητα 50%
-			obj->type = OBSTACLE;					// επιλέγουμε εμπόδιο.
-			obj->rect.width = 10;
-			obj->rect.height = 80;
-
-		} else {
-			obj->type = ENEMY;						// Και τα υπόλοιπα είναι εχθροί.
-			obj->rect.width = 30;
-			obj->rect.height = 30;
-			obj->forward = false;					// Οι εχθροί αρχικά κινούνται προς τα αριστερά.
-		}
-
-		// Τα αντικείμενα είναι ομοιόμορφα τοποθετημένα σε απόσταση SPACING
-		// μεταξύ τους, και "κάθονται" πάνω στο δάπεδο.
-
-		obj->rect.x = (i+1) * SPACING;
-		obj->rect.y = - obj->rect.height;
-	}
-
-	// TODO: αρχικοποίηση της λίστας state->portal_pairs
+	// Δημιουργούμε τη λίστα των αντικειμένων, και προσθέτουμε αντικείμενα
+	// ξεκινώντας από start_y = 0.
+	state->objects = list_create(NULL);
+	add_objects(state, 0);
 
 	return state;
 }

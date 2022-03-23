@@ -23,6 +23,8 @@ ARGS =
 include $(LIB)/libraylib.mk
 
 
+all: $(EXEC)
+
 $(EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $(EXEC) $(LDFLAGS)
 
