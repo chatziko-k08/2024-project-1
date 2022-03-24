@@ -131,9 +131,9 @@ StateInfo state_info(State state) {
 }
 
 // Επιστρέφει μια λίστα με όλα τα αντικείμενα του παιχνιδιού στην κατάσταση state,
-// των οποίων η συντεταγμένη x είναι ανάμεσα στο x_from και x_to.
+// των οποίων η συντεταγμένη y είναι ανάμεσα στο y_from και y_to.
 
-List state_objects(State state, float x_from, float x_to) {
+List state_objects(State state, float y_from, float y_to) {
 	// Προς υλοποίηση
 	return NULL;
 }
