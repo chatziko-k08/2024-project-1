@@ -9,7 +9,7 @@
 #define SCREEN_HEIGHT 800	// Υψος της οθόνης
 
 typedef enum {
-	TERAIN, HELICOPTER, WARSHIP, JET, MISSLE, BRIDGE
+	TERRAIN, HELICOPTER, WARSHIP, JET, MISSILE, BRIDGE
 } ObjectType;
 
 // Πληροφορίες για κάθε αντικείμενο
