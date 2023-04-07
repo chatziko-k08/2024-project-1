@@ -55,13 +55,13 @@ static void add_objects(State state, float start_x) {
 	for (int i = 0; i < PLATFORM_NUM; i++) {
 		Object platform = create_object(
 			PLATFORM,
-			start_x + 150 + rand() % 80,				// x με τυχαία απόσταση από το προηγούμενο στο διάστημα [150, 230]
-			SCREEN_HEIGHT/4 + rand() % SCREEN_HEIGHT/2,	// y τυχαία στο διάστημα [SCREEN_HEIGHT/4, 3*SCREEN_HEIGHT/4]
-			50 + rand()%200,							// πλάτος τυχαία στο διάστημα [50, 250]
-			20,											// ύψος
-			rand() % 2 == 0 ? MOVING_UP : MOVING_DOWN,	// τυχαία αρχική κίνηση
-			0.6 + 3*(rand()%100)/100,					// ταχύτητα τυχαία στο διάστημα [0.6, 3.6]
-			i >= 5 && (rand() % 10) == 0				// το 10% (τυχαία) των πλατφορμών είναι ασταθείς (εκτός από τις πρώτες 5)
+			start_x + 150 + rand() % 80,						// x με τυχαία απόσταση από το προηγούμενο στο διάστημα [150, 230]
+			SCREEN_HEIGHT/4 + rand() % SCREEN_HEIGHT/2,			// y τυχαία στο διάστημα [SCREEN_HEIGHT/4, 3*SCREEN_HEIGHT/4]
+			i == 0 ? 250 : 50 + rand()%200,						// πλάτος τυχαία στο διάστημα [50, 250] (η πρώτη πάντα 250)
+			20,													// ύψος
+			i < 3 || rand() % 2 == 0 ? MOVING_UP : MOVING_DOWN,	// τυχαία αρχική κίνηση (οι πρώτες 3 πάντα πάνω)
+			0.6 + 3*(rand()%100)/100,							// ταχύτητα τυχαία στο διάστημα [0.6, 3.6]
+			i > 0 && (rand() % 10) == 0							// το 10% (τυχαία) των πλατφορμών είναι ασταθείς (εκτός από την πρώτη)
 		);
 		vector_insert_last(state->objects, platform);
 
