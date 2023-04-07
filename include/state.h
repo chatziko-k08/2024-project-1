@@ -3,26 +3,30 @@
 #include "raylib.h"
 #include "ADTList.h"
 
-#define BRIDGE_NUM 20		// πόσες γέφυρες δημιουργούνται στην πίστα
-#define SPACING 200			// απόσταση ανάμεσα στα αντικείμενα της πίστας
-#define SCREEN_WIDTH 450	// Πλάτος της οθόνης
-#define SCREEN_HEIGHT 800	// Υψος της οθόνης
+#define PLATFORM_NUM 20		// πόσες πλατφόρμες δημιουργούνται στην πίστα
+#define SCREEN_WIDTH 900	// Πλάτος της οθόνης
+#define SCREEN_HEIGHT 450	// Υψος της οθόνης
 
 typedef enum {
-	TERRAIN, HELICOPTER, WARSHIP, JET, MISSILE, BRIDGE
+	BALL, PLATFORM, STAR
 } ObjectType;
+
+typedef enum {
+	IDLE, JUMPING, FALLING, MOVING_UP, MOVING_DOWN
+} VerticalMovement;
 
 // Πληροφορίες για κάθε αντικείμενο
 typedef struct object {
-	ObjectType type;				// Τύπος (Εδαφος / Ελικόπτερο / Πλοίο / Αεροσκάφος / Πύραυλος / Γέφυρα)
-	Rectangle rect;					// Θέση και μέγεθος του αντικειμένου. Το Rectangle ορίζεται στο include/raylib.h, line 213
-	bool forward;					// true: το αντικείμενο κινείται προς τα δεξιά
+	ObjectType type;			// Τύπος (Μπάλα, Πλατφόρμα, Αστέρι)
+	Rectangle rect;				// Θέση και μέγεθος του αντικειμένου. Το Rectangle ορίζεται στο include/raylib.h, line 213
+	VerticalMovement vert_mov;	// Τύπος κατακόρυφης κίνησης
+	float vert_speed;			// Κατακόρυφη ταχύτητα
+	bool unstable;				// (μόνο για πλατφόρμες) true αν είναι ασταθής
 }* Object;
 
 // Γενικές πληροφορίες για την κατάσταση του παιχνιδιού
 typedef struct state_info {
-	Object jet;						// πληροφορίες για το αεροσκάφος
-	Object missile;					// πληροφορίες για τον πύραυλο
+	Object ball;					// πληροφορίες για τη μπάλα
 	bool playing;					// true αν το παιχνίδι είναι ενεργό (false μετά από game over)
 	bool paused;					// true αν το παιχνίδι είναι paused
 	int score;						// το τρέχον σκορ
@@ -34,7 +38,6 @@ typedef struct key_state {
 	bool down;
 	bool left;
 	bool right;
-	bool space;
 	bool enter;
 	bool n;
 	bool p;
@@ -53,9 +56,9 @@ State state_create();
 StateInfo state_info(State state);
 
 // Επιστρέφει μια λίστα με όλα τα αντικείμενα του παιχνιδιού στην κατάσταση state,
-// των οποίων η συντεταγμένη y είναι ανάμεσα στο y_from και y_to.
+// των οποίων η συντεταγμένη x είναι ανάμεσα στο x_from και x_to.
 
-List state_objects(State state, float y_from, float y_to);
+List state_objects(State state, float x_from, float x_to);
 
 // Ενημερώνει την κατάσταση state του παιχνιδιού μετά την πάροδο 1 frame.
 // Το keys περιέχει τα πλήκτρα τα οποία ήταν πατημένα κατά το frame αυτό.
