@@ -19,14 +19,14 @@ struct state {
 
 // Δημιουργεί και επιστρέφει ένα αντικείμενο
 
-static Object create_object(ObjectType type, float x, float y, float width, float height, VerticalMovement vertical, float speed, bool unstable) {
+static Object create_object(ObjectType type, float x, float y, float width, float height, VerticalMovement vert_mov, float speed, bool unstable) {
 	Object obj = malloc(sizeof(*obj));
 	obj->type = type;
 	obj->rect.x = x;
 	obj->rect.y = y;
 	obj->rect.width = width;
 	obj->rect.height = height;
-	obj->vert_mov = vertical;
+	obj->vert_mov = vert_mov;
 	obj->vert_speed = speed;
 	obj->unstable = unstable;
 	return obj;
