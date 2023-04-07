@@ -37,3 +37,8 @@ clean-programs-%:
 clean: $(addprefix clean-programs-, $(PROGRAMS))
 	$(MAKE) -C tests clean
 	$(MAKE) -C lib clean
+
+# Δηλώνουμε ότι οι παρακάτω κανόνες είναι εικονικοί, δεν παράγουν αρχεία. Θέλουμε δηλαδή
+# το "make programs" να εκτελεστεί παρόλο που υπάρχει ήδη ένα directory "programs".
+#
+.PHONY: programs tests lib run run-programs run-tests clean
