@@ -1,6 +1,6 @@
 ![run-tests](../../workflows/run-tests/badge.svg)
 
-## 2021 Project 1
+## 2023 Project 1
 
 Εκφώνηση: https://k08.chatzi.org/projects/project1/
 
