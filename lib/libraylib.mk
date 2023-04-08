@@ -14,8 +14,8 @@ else ifeq ($(OS),Windows_NT)
 	# Windows
 	LDFLAGS += -lgdi32 -lwinmm
 
-	ifneq (,$(findstring Microsoft,$(shell uname -a)))
-		# Windows build from within WSL (make OS=Windows_NT)
+	ifneq (,$(findstring icrosoft,$(shell uname -a)))
+		# Windows build from within WSL (make OS=Windows_NT). Note: "Microsoft" in uname is uppercase in WSL1 but lowercase in WSL2
 		# Use the mingw32 compiler
 		CC = x86_64-w64-mingw32-gcc
 	endif
