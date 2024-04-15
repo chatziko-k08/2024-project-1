@@ -4,6 +4,7 @@
 #include "ADTVector.h"
 #include "ADTList.h"
 #include "state.h"
+#include "vec2.h"
 
 
 // Οι ολοκληρωμένες πληροφορίες της κατάστασης του παιχνιδιού.
@@ -11,75 +12,67 @@
 // δεν είναι ορατό στον χρήστη.
 
 struct state {
-	Vector objects;			// περιέχει στοιχεία Object (Πλατφόρμες, Αστέρια)
+	Vector objects;			// περιέχει στοιχεία Object (αστεροειδείς, σφαίρες)
 	struct state_info info;	// Γενικές πληροφορίες για την κατάσταση του παιχνιδιού
+	int next_bullet;		// Αριθμός frames μέχρι να επιτραπεί ξανά σφαίρα
 	float speed_factor;		// Πολλαπλασιαστής ταχύτητς (1 = κανονική ταχύτητα, 2 = διπλάσια, κλπ)
 };
 
 
 // Δημιουργεί και επιστρέφει ένα αντικείμενο
 
-static Object create_object(ObjectType type, float x, float y, float width, float height, VerticalMovement vert_mov, float speed, bool unstable) {
+static Object create_object(ObjectType type, Vector2 position, Vector2 speed, Vector2 orientation, double size) {
 	Object obj = malloc(sizeof(*obj));
 	obj->type = type;
-	obj->rect.x = x;
-	obj->rect.y = y;
-	obj->rect.width = width;
-	obj->rect.height = height;
-	obj->vert_mov = vert_mov;
-	obj->vert_speed = speed;
-	obj->unstable = unstable;
+	obj->position = position;
+	obj->speed = speed;
+	obj->orientation = orientation;
+	obj->size = size;
 	return obj;
 }
 
-// Προσθέτει αντικείμενα στην πίστα (η οποία μπορεί να περιέχει ήδη αντικείμενα).
-// Τα αντικείμενα ξεκινάνε από x = start_x, και επεκτείνονται προς τα δεξιά.
-//
-// ΠΡΟΣΟΧΗ: όλα τα αντικείμενα έχουν συντεταγμένες x,y σε ένα
-// καρτεσιανό επίπεδο.
-// - Στο άξονα x το 0 είναι η αρχή της πίστας και οι συντεταγμένες
-//   μεγαλώνουν προς τα δεξιά.
-//
-// - Στον άξονα y το 0 είναι το πάνω μέρος της πίστας, και οι συντεταγμένες μεγαλώνουν
-//   προς τα _κάτω_. Η πίστα έχει σταθερό ύψος, οπότε όλες οι
-//   συντεταγμένες y είναι ανάμεσα στο 0 και το SCREEN_HEIGHT.
-//
-// Πέρα από τις συντεταγμένες, αποθηκεύουμε και τις διαστάσεις width,height
-// κάθε αντικειμένου. Τα x,y,width,height ορίζουν ένα παραλληλόγραμμο, οπότε
-// μπορούν να αποθηκευτούν όλα μαζί στο obj->rect τύπου Rectangle (ορίζεται
-// στο include/raylib.h). Τα x,y αναφέρονται στην πάνω-αριστερά γωνία του Rectangle.
+// Επιστρέφει έναν τυχαίο πραγματικό αριθμό στο διάστημα [min,max]
 
-static void add_objects(State state, float start_x) {
-	// Προσθέτουμε PLATFORM_NUM πλατφόρμες, με τυχαία χαρακτηριστικά.
+static double randf(double min, double max) {
+	return min + (double)rand() / RAND_MAX * (max - min);
+}
 
-	for (int i = 0; i < PLATFORM_NUM; i++) {
-		Object platform = create_object(
-			PLATFORM,
-			start_x + 150 + rand() % 80,						// x με τυχαία απόσταση από το προηγούμενο στο διάστημα [150, 230]
-			SCREEN_HEIGHT/4 + rand() % SCREEN_HEIGHT/2,			// y τυχαία στο διάστημα [SCREEN_HEIGHT/4, 3*SCREEN_HEIGHT/4]
-			i == 0 ? 250 : 50 + rand()%200,						// πλάτος τυχαία στο διάστημα [50, 250] (η πρώτη πάντα 250)
-			20,													// ύψος
-			i < 3 || rand() % 2 == 0 ? MOVING_UP : MOVING_DOWN,	// τυχαία αρχική κίνηση (οι πρώτες 3 πάντα πάνω)
-			0.6 + 3*(rand()%100)/100,							// ταχύτητα τυχαία στο διάστημα [0.6, 3.6]
-			i > 0 && (rand() % 10) == 0							// το 10% (τυχαία) των πλατφορμών είναι ασταθείς (εκτός από την πρώτη)
+// Προσθέτει num αστεροειδείς στην πίστα (η οποία μπορεί να περιέχει ήδη αντικείμενα).
+//
+// ΠΡΟΣΟΧΗ: όλα τα αντικείμενα έχουν συντεταγμένες x,y σε ένα καρτεσιανό επίπεδο.
+// - Η αρχή των αξόνων είναι η θέση του διαστημόπλοιου στην αρχή του παιχνιδιού
+// - Στο άξονα x οι συντεταγμένες μεγαλώνουν προς τα δεξιά.
+// - Στον άξονα y οι συντεταγμένες μεγαλώνουν προς τα πάνω.
+
+static void add_asteroids(State state, int num) {
+	for (int i = 0; i < num; i++) {
+		// Τυχαία θέση σε απόσταση [ASTEROID_MIN_DIST, ASTEROID_MAX_DIST]
+		// από το διστημόπλοιο.
+		//
+		Vector2 position = vec2_add(
+			state->info.spaceship->position,
+			vec2_from_polar(
+				randf(ASTEROID_MIN_DIST, ASTEROID_MAX_DIST),	// απόσταση
+				randf(0, 2*PI)									// κατεύθυνση
+			)
 		);
-		vector_insert_last(state->objects, platform);
 
-		// Στο 50% των πλατφορμών (τυχαία), εκτός της πρώτης, προσθέτουμε αστέρι
-		if(i != 0 && rand() % 2 == 0) {
-			Object star = create_object(
-				STAR,
-				start_x + 200 + rand() % 60,				// x με τυχαία απόσταση από την προηγούμενη πλατφόρμα στο διάστημα [200,260]
-				SCREEN_HEIGHT/8 + rand() % SCREEN_HEIGHT/2,	// y τυχαία στο διάστημα [SCREEN_HEIGHT/8, 5*SCREEN_HEIGHT/8]
-				30, 30,										// πλάτος, ύψος
-				IDLE,										// χωρίς κίνηση
-				0,										 	// ταχύτητα 0
-				false										// 'unstable' πάντα false για τα αστέρια
-			);
-			vector_insert_last(state->objects, star);
-		}
+		// Τυχαία ταχύτητα στο διάστημα [ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED]
+		// με τυχαία κατεύθυνση.
+		//
+		Vector2 speed = vec2_from_polar(
+			randf(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * state->speed_factor,
+			randf(0, 2*PI)
+		);
 
-		start_x = platform->rect.x + platform->rect.width;	// μετακίνηση των επόμενων αντικειμένων προς τα δεξιά
+		Object asteroid = create_object(
+			ASTEROID,
+			position,
+			speed,
+			(Vector2){0, 0},								// δεν χρησιμοποιείται για αστεροειδείς
+			randf(ASTEROID_MIN_SIZE, ASTEROID_MAX_SIZE)		// τυχαίο μέγεθος
+		);
+		vector_insert_last(state->objects, asteroid);
 	}
 }
 
@@ -90,27 +83,25 @@ State state_create() {
 	State state = malloc(sizeof(*state));
 
 	// Γενικές πληροφορίες
-	state->info.playing = true;				// Το παιχνίδι ξεκινάει αμέσως
-	state->info.paused = false;				// Χωρίς να είναι paused.
+	state->info.paused = false;				// Το παιχνίδι ξεκινάει χωρίς να είναι paused.
 	state->speed_factor = 1;				// Κανονική ταχύτητα
+	state->next_bullet = 0;					// Σφαίρα επιτρέπεται αμέσως
 	state->info.score = 0;				// Αρχικό σκορ 0
 
 	// Δημιουργούμε το vector των αντικειμένων, και προσθέτουμε αντικείμενα
-	// ξεκινώντας από start_x = 0.
 	state->objects = vector_create(0, NULL);
-	add_objects(state, 0);
 
-	// Δημιουργούμε την μπάλα τοποθετώντας τη πάνω στην πρώτη πλατφόρμα
-	Object first_platform = vector_get_at(state->objects, 0);
-	state->info.ball = create_object(
-		BALL,
-		first_platform->rect.x,			// x στην αρχή της πλατφόρμας
-		first_platform->rect.y - 40,	// y πάνω στην πλατφόρμα
-		45, 45,							// πλάτος, ύψος
-		IDLE,							// χωρίς αρχική κατακόρυφη κίνηση
-		0,								// αρχική ταχύτητα 0
-		false							// "unstable" πάντα false για την μπάλα
+	// Δημιουργούμε το διαστημόπλοιο
+	state->info.spaceship = create_object(
+		SPACESHIP,
+		(Vector2){0, 0},			// αρχική θέση στην αρχή των αξόνων
+		(Vector2){0, 0},			// μηδενική αρχική ταχύτητα
+		(Vector2){0, 1},			// κοιτάει προς τα πάνω
+		SPACESHIP_SIZE				// μέγεθος
 	);
+
+	// Προσθήκη αρχικών αστεροειδών
+	add_asteroids(state, ASTEROID_NUM);
 
 	return state;
 }
@@ -123,9 +114,10 @@ StateInfo state_info(State state) {
 }
 
 // Επιστρέφει μια λίστα με όλα τα αντικείμενα του παιχνιδιού στην κατάσταση state,
-// των οποίων η συντεταγμένη x είναι ανάμεσα στο x_from και x_to.
+// των οποίων η θέση position βρίσκεται εντός του παραλληλογράμμου με πάνω αριστερή
+// γωνία top_left και κάτω δεξιά bottom_right.
 
-List state_objects(State state, float x_from, float x_to) {
+List state_objects(State state, Vector2 top_left, Vector2 bottom_right) {
 	// Προς υλοποίηση
 	return NULL;
 }

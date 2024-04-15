@@ -4,9 +4,26 @@
 //
 //////////////////////////////////////////////////////////////////
 
+#include <stdlib.h>
 #include "acutest.h"			// Απλή βιβλιοθήκη για unit testing
 
 #include "state.h"
+
+
+///// Βοηθητικές συναρτήσεις ////////////////////////////////////////
+//
+// Ελέγχει την (προσεγγιστική) ισότητα δύο double
+// (λόγω λαθών το a == b δεν είναι ακριβές όταν συγκρίνουμε double).
+static bool double_equal(double a, double b) {
+	return abs(a-b) < 1e-6;
+}
+
+// Ελέγχει την ισότητα δύο διανυσμάτων
+static bool vec2_equal(Vector2 a, Vector2 b) {
+	return double_equal(a.x, b.x) && double_equal(a.y, b.y);
+}
+/////////////////////////////////////////////////////////////////////
+
 
 void test_state_create() {
 
@@ -16,7 +33,6 @@ void test_state_create() {
 	StateInfo info = state_info(state);
 	TEST_ASSERT(info != NULL);
 
-	TEST_ASSERT(info->playing);
 	TEST_ASSERT(!info->paused);
 	TEST_ASSERT(info->score == 0);
 
@@ -30,20 +46,18 @@ void test_state_update() {
 	// Πληροφορίες για τα πλήκτρα (αρχικά κανένα δεν είναι πατημένο)
 	struct key_state keys = { false, false, false, false, false, false, false };
 	
-	// Χωρίς κανένα πλήκτρο, η μπάλα μετακινείται 4 pixels δεξιά
-	Rectangle old_rect = state_info(state)->ball->rect;
+	// Χωρίς κανένα πλήκτρο, το διαστημόπλοιο παραμένει σταθερό με μηδενική ταχύτητα
 	state_update(state, &keys);
-	Rectangle new_rect = state_info(state)->ball->rect;
 
-	TEST_ASSERT( new_rect.x == old_rect.x + 4 );
+	TEST_ASSERT( vec2_equal( state_info(state)->spaceship->position, (Vector2){0,0}) );
+	TEST_ASSERT( vec2_equal( state_info(state)->spaceship->speed,    (Vector2){0,0}) );
 
-	// Με πατημένο το δεξί βέλος, η μπάλα μετακινείται 6 pixels δεξιά
-	keys.right = true;
-	old_rect = state_info(state)->ball->rect;
+	// Με πατημένο το πάνω βέλος, η ταχήτητα αυξάνεται ενώ το διαστημόπλοιο παραμένει για την ώρα ακίνητο
+	keys.up = true;
 	state_update(state, &keys);
-	new_rect = state_info(state)->ball->rect;
 
-	TEST_CHECK( new_rect.x == old_rect.x + 6 );
+	TEST_ASSERT( vec2_equal( state_info(state)->spaceship->position, (Vector2){0,0}) );
+	TEST_ASSERT( vec2_equal( state_info(state)->spaceship->speed,    (Vector2){0,SPACESHIP_ACCELERATION}) );
 
 	// Προσθέστε επιπλέον ελέγχους
 }
