@@ -35,13 +35,13 @@ typedef struct object {
 	ObjectType type;			// Τύπος (Διαστημόπλοιο, Αστεροειδής, Σφαίρα)
 	Vector2 position;			// Θέση
 	Vector2 speed;				// Ταχύτητα (pixels/frame)
-	double size;
+	double size;				// Μέγεθος (pixels)
 	Vector2 orientation;		// Κατεύθυνση (μόνο για διαστημόπλοιο)
 }* Object;
 
 // Γενικές πληροφορίες για την κατάσταση του παιχνιδιού
 typedef struct state_info {
-	Object spaceship;					// πληροφορίες για τη μπάλα
+	Object spaceship;				// πληροφορίες για τη το διαστημόπλοιο
 	bool paused;					// true αν το παιχνίδι είναι paused
 	int score;						// το τρέχον σκορ
 }* StateInfo;
