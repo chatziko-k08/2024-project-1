@@ -5,6 +5,7 @@
 //////////////////////////////////////////////////////////////////
 
 #include <stdlib.h>
+#include <math.h>
 #include "acutest.h"			// Απλή βιβλιοθήκη για unit testing
 
 #include "state.h"
@@ -15,7 +16,7 @@
 // Ελέγχει την (προσεγγιστική) ισότητα δύο double
 // (λόγω λαθών το a == b δεν είναι ακριβές όταν συγκρίνουμε double).
 static bool double_equal(double a, double b) {
-	return abs(a-b) < 1e-6;
+	return fabs(a-b) < 1e-6;
 }
 
 // Ελέγχει την ισότητα δύο διανυσμάτων
